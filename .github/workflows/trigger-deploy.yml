@@ -22,50 +22,41 @@ jobs:
         script: |
           const owner = 'Elsonc1';
           const repo = 'LayoutParserApi';
+          const workflowFile = '.github/workflows/deploy.yml';
           
-          // Buscar workflows do repositório
-          console.log('Buscando workflow de deploy...');
-          const workflowsResponse = await github.request('GET /repos/{owner}/{repo}/actions/workflows', {
-            owner: owner,
-            repo: repo
-          });
+          // Tentar disparar o workflow diretamente pelo caminho do arquivo
+          // Primeiro tentar na branch main
+          const branches = ['main', 'master'];
+          let success = false;
+          let lastError = null;
           
-          const workflows = workflowsResponse.data.workflows;
-          const deployWorkflow = workflows.find(
-            w => w.name === 'Deploy to Production Server' || w.path.includes('deploy.yml')
-          );
-          
-          if (!deployWorkflow) {
-            throw new Error('Workflow deploy.yml não encontrado no repositório LayoutParserApi');
-          }
-          
-          console.log(`Workflow encontrado: ${deployWorkflow.name} (ID: ${deployWorkflow.id})`);
-          
-          // Tentar disparar na branch main primeiro
-          let ref = 'main';
-          try {
-            await github.request('POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches', {
-              owner: owner,
-              repo: repo,
-              workflow_id: deployWorkflow.id,
-              ref: ref
-            });
-            console.log(`✅ Workflow de deploy acionado na branch ${ref}`);
-          } catch (error) {
-            // Se falhar, tentar na branch master
-            if (error.status === 404 || error.message.includes('not found')) {
-              console.log(`Tentando na branch master...`);
-              ref = 'master';
+          for (const ref of branches) {
+            try {
+              console.log(`Tentando disparar workflow na branch ${ref}...`);
               await github.request('POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches', {
                 owner: owner,
                 repo: repo,
-                workflow_id: deployWorkflow.id,
+                workflow_id: workflowFile,
                 ref: ref
               });
               console.log(`✅ Workflow de deploy acionado na branch ${ref}`);
-            } else {
-              throw error;
+              success = true;
+              break;
+            } catch (error) {
+              lastError = error;
+              console.log(`Falha na branch ${ref}: ${error.message}`);
+              if (error.status === 404) {
+                // Se for 404, tentar próxima branch
+                continue;
+              } else {
+                // Se for outro erro, lançar exceção
+                throw error;
+              }
             }
+          }
+          
+          if (!success) {
+            throw new Error(`Não foi possível acionar o workflow. Último erro: ${lastError?.message || 'Desconhecido'}`);
           }
           
     - name: Wait for deployment (optional)
