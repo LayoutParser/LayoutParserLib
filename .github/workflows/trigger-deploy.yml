@@ -25,8 +25,8 @@ jobs:
           const workflowFile = '.github/workflows/deploy.yml';
           
           // Tentar disparar o workflow diretamente pelo caminho do arquivo
-          // Primeiro tentar na branch main
-          const branches = ['main', 'master'];
+          // API, Lib e Decrypt usam branch master, LayoutParser usa main
+          const branches = ['master', 'main'];
           let success = false;
           let lastError = null;
           
