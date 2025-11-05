@@ -1,0 +1,39 @@
+name: Trigger Deploy on LayoutParserApi
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  trigger-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - name: Trigger deploy workflow in LayoutParserApi
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GH_PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        script: |
+          const { owner, repo } = context.repo;
+          
+          // Disparar o workflow no repositório LayoutParserApi
+          await github.rest.actions.createWorkflowDispatch({
+            owner: 'Elsonc1',
+            repo: 'LayoutParserApi',
+            workflow_id: 'deploy.yml',
+            ref: 'main'
+          });
+          
+          console.log('✅ Workflow de deploy acionado no repositório LayoutParserApi');
+          
+    - name: Wait for deployment (optional)
+      run: |
+        echo "⏳ Workflow de deploy foi acionado. Verifique o status em:"
+        echo "https://github.com/Elsonc1/LayoutParserApi/actions"
+
