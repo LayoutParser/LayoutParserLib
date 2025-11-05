@@ -20,17 +20,52 @@ jobs:
       with:
         github-token: ${{ secrets.GH_PAT_TOKEN || secrets.GITHUB_TOKEN }}
         script: |
-          const { owner, repo } = context.repo;
+          const owner = 'Elsonc1';
+          const repo = 'LayoutParserApi';
           
-          // Disparar o workflow no repositório LayoutParserApi
-          await github.rest.actions.createWorkflowDispatch({
-            owner: 'Elsonc1',
-            repo: 'LayoutParserApi',
-            workflow_id: 'deploy.yml',
-            ref: 'main'
+          // Primeiro, buscar o workflow pelo nome para obter o ID
+          console.log('Buscando workflow de deploy...');
+          const workflows = await github.rest.actions.listWorkflowsForRepo({
+            owner: owner,
+            repo: repo
           });
           
-          console.log('✅ Workflow de deploy acionado no repositório LayoutParserApi');
+          const deployWorkflow = workflows.data.workflows.find(
+            w => w.name === 'Deploy to Production Server' || w.path.includes('deploy.yml')
+          );
+          
+          if (!deployWorkflow) {
+            throw new Error('Workflow deploy.yml não encontrado no repositório LayoutParserApi');
+          }
+          
+          console.log(`Workflow encontrado: ${deployWorkflow.name} (ID: ${deployWorkflow.id})`);
+          
+          // Tentar disparar na branch main primeiro
+          let ref = 'main';
+          try {
+            await github.rest.actions.createWorkflowDispatch({
+              owner: owner,
+              repo: repo,
+              workflow_id: deployWorkflow.id,
+              ref: ref
+            });
+            console.log(`✅ Workflow de deploy acionado na branch ${ref}`);
+          } catch (error) {
+            // Se falhar, tentar na branch master
+            if (error.status === 404 || error.message.includes('not found')) {
+              console.log(`Tentando na branch master...`);
+              ref = 'master';
+              await github.rest.actions.createWorkflowDispatch({
+                owner: owner,
+                repo: repo,
+                workflow_id: deployWorkflow.id,
+                ref: ref
+              });
+              console.log(`✅ Workflow de deploy acionado na branch ${ref}`);
+            } else {
+              throw error;
+            }
+          }
           
     - name: Wait for deployment (optional)
       run: |
