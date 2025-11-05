@@ -23,14 +23,15 @@ jobs:
           const owner = 'Elsonc1';
           const repo = 'LayoutParserApi';
           
-          // Primeiro, buscar o workflow pelo nome para obter o ID
+          // Buscar workflows do repositório
           console.log('Buscando workflow de deploy...');
-          const workflows = await github.rest.actions.listWorkflowsForRepo({
+          const workflowsResponse = await github.request('GET /repos/{owner}/{repo}/actions/workflows', {
             owner: owner,
             repo: repo
           });
           
-          const deployWorkflow = workflows.data.workflows.find(
+          const workflows = workflowsResponse.data.workflows;
+          const deployWorkflow = workflows.find(
             w => w.name === 'Deploy to Production Server' || w.path.includes('deploy.yml')
           );
           
@@ -43,7 +44,7 @@ jobs:
           // Tentar disparar na branch main primeiro
           let ref = 'main';
           try {
-            await github.rest.actions.createWorkflowDispatch({
+            await github.request('POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches', {
               owner: owner,
               repo: repo,
               workflow_id: deployWorkflow.id,
@@ -55,7 +56,7 @@ jobs:
             if (error.status === 404 || error.message.includes('not found')) {
               console.log(`Tentando na branch master...`);
               ref = 'master';
-              await github.rest.actions.createWorkflowDispatch({
+              await github.request('POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches', {
                 owner: owner,
                 repo: repo,
                 workflow_id: deployWorkflow.id,
