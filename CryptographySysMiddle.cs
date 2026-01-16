@@ -11,10 +11,21 @@ namespace LayoutParserLib
 
         public static string Decrypt(string messageToDecrypt)
         {
-            ICryptoTransform cryptoTransform = SymmetricAlgorithm.CreateDecryptor(Encoding.UTF8.GetBytes("dbc%$#h92785"), Encoding.UTF8.GetBytes("Ca#&UjO){Qwz*@FcsPs"));
-            byte[] inputBytes = Convert.FromBase64String(messageToDecrypt);
-            byte[] bytes = Operation(cryptoTransform, inputBytes);
-            return Encoding.UTF8.GetString(bytes);
+            try
+            {
+                RollingFileLogger.Log("INF", $"Decrypt start len={messageToDecrypt?.Length ?? 0}");
+                ICryptoTransform cryptoTransform = SymmetricAlgorithm.CreateDecryptor(Encoding.UTF8.GetBytes("dbc%$#h92785"), Encoding.UTF8.GetBytes("Ca#&UjO){Qwz*@FcsPs"));
+                byte[] inputBytes = Convert.FromBase64String(messageToDecrypt);
+                byte[] bytes = Operation(cryptoTransform, inputBytes);
+                var decrypted = Encoding.UTF8.GetString(bytes);
+                RollingFileLogger.Log("INF", $"Decrypt ok outLen={decrypted?.Length ?? 0}");
+                return decrypted;
+            }
+            catch (Exception ex)
+            {
+                RollingFileLogger.Log("ERR", "Decrypt error", ex);
+                throw;
+            }
         }
 
         private static byte[] Operation(ICryptoTransform cryptoTransform, byte[] inputBytes)
